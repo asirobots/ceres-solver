@@ -1,5 +1,5 @@
 // Ceres Solver - A fast non-linear least squares minimizer
-// Copyright 2015 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 // http://ceres-solver.org/
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,18 +27,18 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 // Author: richie.stebbing@gmail.com (Richard Stebbing)
+//         sameeragarwal@google.com (Sameer Agarwal)
 //
-// This fits points randomly distributed on an ellipse with an approximate
-// line segment contour. This is done by jointly optimizing the control points
-// of the line segment contour along with the preimage positions for the data
-// points. The purpose of this example is to show an example use case for
-// dynamic_sparsity, and how it can benefit problems which are numerically
-// dense but dynamically sparse.
+// Based on examples/ellipse_approximation.cc
 
 #include <cmath>
 #include <vector>
 #include "ceres/ceres.h"
 #include "glog/logging.h"
+#include "gtest/gtest.h"
+
+namespace ceres {
+namespace internal {
 
 // Data generated with the following Python code.
 //   import numpy as np
@@ -267,9 +267,10 @@ const double kYData[kYRows * kYCols] = {
   +3.870542e+00, +9.996121e-01,
   +3.865424e+00, +1.028474e+00
 };
-ceres::ConstMatrixRef kY(kYData, kYRows, kYCols);
 
-class PointToLineSegmentContourCostFunction : public ceres::CostFunction {
+ConstMatrixRef kY(kYData, kYRows, kYCols);
+
+class PointToLineSegmentContourCostFunction : public CostFunction {
  public:
   PointToLineSegmentContourCostFunction(const int num_segments,
                                         const Eigen::Vector2d& y)
@@ -309,7 +310,7 @@ class PointToLineSegmentContourCostFunction : public ceres::CostFunction {
     }
     for (int i = 0; i < num_segments_; ++i) {
       if (jacobians[i + 1] != NULL) {
-        ceres::MatrixRef(jacobians[i + 1], 2, 2).setZero();
+        MatrixRef(jacobians[i + 1], 2, 2).setZero();
         if (i == i0) {
           jacobians[i + 1][0] = -(1.0 - u);
           jacobians[i + 1][3] = -(1.0 - u);
@@ -322,8 +323,7 @@ class PointToLineSegmentContourCostFunction : public ceres::CostFunction {
     return true;
   }
 
-  static ceres::CostFunction* Create(const int num_segments,
-                                     const Eigen::Vector2d& y) {
+  static CostFunction* Create(const int num_segments, const Eigen::Vector2d& y) {
     return new PointToLineSegmentContourCostFunction(num_segments, y);
   }
 
@@ -338,7 +338,7 @@ class PointToLineSegmentContourCostFunction : public ceres::CostFunction {
 
 class EuclideanDistanceFunctor {
  public:
-  explicit EuclideanDistanceFunctor(const double& sqrt_weight)
+  explicit EuclideanDistanceFunctor(const double sqrt_weight)
       : sqrt_weight_(sqrt_weight) {}
 
   template <typename T>
@@ -348,8 +348,8 @@ class EuclideanDistanceFunctor {
     return true;
   }
 
-  static ceres::CostFunction* Create(const double sqrt_weight) {
-    return new ceres::AutoDiffCostFunction<EuclideanDistanceFunctor, 2, 2, 2>(
+  static CostFunction* Create(const double sqrt_weight) {
+    return new AutoDiffCostFunction<EuclideanDistanceFunctor, 2, 2, 2>(
         new EuclideanDistanceFunctor(sqrt_weight));
   }
 
@@ -357,45 +357,20 @@ class EuclideanDistanceFunctor {
   const double sqrt_weight_;
 };
 
-bool SolveWithFullReport(ceres::Solver::Options options,
-                         ceres::Problem* problem,
-                         bool dynamic_sparsity) {
-  options.dynamic_sparsity = dynamic_sparsity;
-
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, problem, &summary);
-
-  std::cout << "####################" << std::endl;
-  std::cout << "dynamic_sparsity = " << dynamic_sparsity << std::endl;
-  std::cout << "####################" << std::endl;
-  std::cout << summary.FullReport() << std::endl;
-
-  return summary.termination_type == ceres::CONVERGENCE;
-}
-
-int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-
+TEST(DynamicSparsity, StaticAndDynamicSparsityProduceSameSolution) {
   // Problem configuration.
   const int num_segments = 151;
   const double regularization_weight = 1e-2;
-
-  // Eigen::MatrixXd is column major so we define our own MatrixXd which is
-  // row major. Eigen::VectorXd can be used directly.
-  typedef Eigen::Matrix<double,
-                        Eigen::Dynamic, Eigen::Dynamic,
-                        Eigen::RowMajor> MatrixXd;
-  using Eigen::VectorXd;
 
   // `X` is the matrix of control points which make up the contour of line
   // segments. The number of control points is equal to the number of line
   // segments because the contour is closed.
   //
   // Initialize `X` to points on the unit circle.
-  VectorXd w(num_segments + 1);
+  Vector w(num_segments + 1);
   w.setLinSpaced(num_segments + 1, 0.0, 2.0 * M_PI);
   w.conservativeResize(num_segments);
-  MatrixXd X(num_segments, 2);
+  Matrix X(num_segments, 2);
   X.col(0) = w.array().cos();
   X.col(1) = w.array().sin();
 
@@ -403,12 +378,12 @@ int main(int argc, char** argv) {
   // contour. For each data point we initialize the preimage positions to
   // the index of the closest control point.
   const int num_observations = kY.rows();
-  VectorXd t(num_observations);
+  Vector t(num_observations);
   for (int i = 0; i < num_observations; ++i) {
     (X.rowwise() - kY.row(i)).rowwise().squaredNorm().minCoeff(&t[i]);
   }
 
-  ceres::Problem problem;
+  Problem problem;
 
   // For each data point add a residual which measures its distance to its
   // corresponding position on the line segment contour.
@@ -420,33 +395,48 @@ int main(int argc, char** argv) {
   for (int i = 0; i < num_observations; ++i) {
     parameter_blocks[0] = &t[i];
     problem.AddResidualBlock(
-      PointToLineSegmentContourCostFunction::Create(num_segments, kY.row(i)),
-      NULL,
-      parameter_blocks);
+        PointToLineSegmentContourCostFunction::Create(num_segments, kY.row(i)),
+        NULL,
+        parameter_blocks);
   }
 
   // Add regularization to minimize the length of the line segment contour.
   for (int i = 0; i < num_segments; ++i) {
     problem.AddResidualBlock(
-      EuclideanDistanceFunctor::Create(sqrt(regularization_weight)),
-      NULL,
-      X.data() + 2 * i,
-      X.data() + 2 * ((i + 1) % num_segments));
+        EuclideanDistanceFunctor::Create(sqrt(regularization_weight)),
+        NULL,
+        X.data() + 2 * i,
+        X.data() + 2 * ((i + 1) % num_segments));
   }
 
-  ceres::Solver::Options options;
+  Solver::Options options;
   options.max_num_iterations = 100;
-  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+  options.linear_solver_type = SPARSE_NORMAL_CHOLESKY;
 
   // First, solve `X` and `t` jointly with dynamic_sparsity = true.
-  MatrixXd X0 = X;
-  VectorXd t0 = t;
-  CHECK(SolveWithFullReport(options, &problem, true));
+  Matrix X0 = X;
+  Vector t0 = t;
+  options.dynamic_sparsity = false;
+  Solver::Summary static_summary;
+  Solve(options, &problem, &static_summary);
+  EXPECT_EQ(static_summary.termination_type, CONVERGENCE)
+      << static_summary.FullReport();
 
-  // Second, solve with dynamic_sparsity = false.
   X = X0;
   t = t0;
-  CHECK(SolveWithFullReport(options, &problem, false));
+  options.dynamic_sparsity = true;
+  Solver::Summary dynamic_summary;
+  Solve(options, &problem, &dynamic_summary);
+  EXPECT_EQ(dynamic_summary.termination_type, CONVERGENCE)
+      << dynamic_summary.FullReport();
 
-  return 0;
+  EXPECT_NEAR(static_summary.final_cost,
+              dynamic_summary.final_cost,
+              std::numeric_limits<double>::epsilon())
+      << "Static: \n"
+      << static_summary.FullReport() << "\nDynamic: \n"
+      << dynamic_summary.FullReport();
 }
+
+}  // namespace internal
+}  // namespace ceres

@@ -1,5 +1,5 @@
 // Ceres Solver - A fast non-linear least squares minimizer
-// Copyright 2015 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 // http://ceres-solver.org/
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,50 +26,44 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 //
-// Author: keir@google.com (Keir Mierle)
+// Author: sameeragarwal@google.com (Sameer Agarwal)
+//
+// A simple C++ interface to the Eigen's Sparse Cholesky routines.
 
-#ifndef CERES_INTERNAL_BLOCK_JACOBI_PRECONDITIONER_H_
-#define CERES_INTERNAL_BLOCK_JACOBI_PRECONDITIONER_H_
+#ifndef CERES_INTERNAL_EIGENSPARSE_H_
+#define CERES_INTERNAL_EIGENSPARSE_H_
 
-#include "ceres/block_random_access_diagonal_matrix.h"
-#include "ceres/internal/scoped_ptr.h"
-#include "ceres/preconditioner.h"
+// This include must come before any #ifndef check on Ceres compile options.
+#include "ceres/internal/port.h"
+
+#ifdef CERES_USE_EIGEN_SPARSE
+
+#include <string>
+#include "Eigen/SparseCore"
+#include "ceres/linear_solver.h"
+#include "ceres/sparse_cholesky.h"
 
 namespace ceres {
 namespace internal {
 
-class BlockSparseMatrix;
-struct CompressedRowBlockStructure;
-
-// A block Jacobi preconditioner. This is intended for use with
-// conjugate gradients, or other iterative symmetric solvers. To use
-// the preconditioner, create one by passing a BlockSparseMatrix "A"
-// to the constructor. This fixes the sparsity pattern to the pattern
-// of the matrix A^TA.
-//
-// Before each use of the preconditioner in a solve with conjugate gradients,
-// update the matrix by running Update(A, D). The values of the matrix A are
-// inspected to construct the preconditioner. The vector D is applied as the
-// D^TD diagonal term.
-class BlockJacobiPreconditioner : public BlockSparseMatrixPreconditioner {
+class EigenSparseCholesky : public SparseCholesky {
  public:
-  // A must remain valid while the BlockJacobiPreconditioner is.
-  explicit BlockJacobiPreconditioner(const BlockSparseMatrix& A);
-  virtual ~BlockJacobiPreconditioner();
+  // Factory
+  static EigenSparseCholesky* Create(const OrderingType ordering_type);
 
-  // Preconditioner interface
-  virtual void RightMultiply(const double* x, double* y) const;
-  virtual int num_rows() const { return m_->num_rows(); }
-  virtual int num_cols() const { return m_->num_rows(); }
-  const BlockRandomAccessDiagonalMatrix& matrix() const { return *m_; }
-
- private:
-  virtual bool UpdateImpl(const BlockSparseMatrix& A, const double* D);
-
-  scoped_ptr<BlockRandomAccessDiagonalMatrix> m_;
+  // SparseCholesky interface.
+  virtual ~EigenSparseCholesky();
+  virtual CompressedRowSparseMatrix::StorageType StorageType() const = 0;
+  virtual LinearSolverTerminationType Factorize(
+      const Eigen::SparseMatrix<double>& lhs, std::string* message) = 0;
+  virtual LinearSolverTerminationType Solve(const double* rhs,
+                                            double* solution,
+                                            std::string* message) = 0;
 };
 
 }  // namespace internal
 }  // namespace ceres
 
-#endif  // CERES_INTERNAL_BLOCK_JACOBI_PRECONDITIONER_H_
+#endif  // CERES_USE_EIGEN_SPARSE
+
+#endif  // CERES_INTERNAL_EIGENSPARSE_H_

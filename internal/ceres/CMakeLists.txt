@@ -63,6 +63,7 @@ set(CERES_INTERNAL_SRC
     dynamic_compressed_row_sparse_matrix.cc
     dynamic_sparse_normal_cholesky_solver.cc
     evaluator.cc
+    eigensparse.cc
     file.cc
     gradient_checker.cc
     gradient_checking_cost_function.cc
@@ -105,6 +106,7 @@ set(CERES_INTERNAL_SRC
     solver.cc
     solver_utils.cc
     sparse_matrix.cc
+    sparse_cholesky.cc
     sparse_normal_cholesky_solver.cc
     split.cc
     stringprintf.cc
@@ -301,6 +303,7 @@ if (BUILD_TESTING AND GFLAGS)
   ceres_test(dynamic_autodiff_cost_function)
   ceres_test(dynamic_compressed_row_sparse_matrix)
   ceres_test(dynamic_numeric_diff_cost_function)
+  ceres_test(dynamic_sparsity)
   ceres_test(evaluator)
   ceres_test(gradient_checker)
   ceres_test(gradient_checking_cost_function)
@@ -339,6 +342,7 @@ if (BUILD_TESTING AND GFLAGS)
   ceres_test(single_linkage_clustering)
   ceres_test(small_blas)
   ceres_test(solver)
+  ceres_test(sparse_cholesky)
 
   # TODO(sameeragarwal): This test should ultimately be made
   # independent of SuiteSparse.
