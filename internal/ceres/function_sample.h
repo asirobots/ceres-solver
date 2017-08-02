@@ -28,51 +28,67 @@
 //
 // Author: sameeragarwal@google.com (Sameer Agarwal)
 
-#ifndef CERES_INTERNAL_INVERT_PSD_MATRIX_H_
-#define CERES_INTERNAL_INVERT_PSD_MATRIX_H_
+#ifndef CERES_INTERNAL_FUNCTION_SAMPLE_H_
+#define CERES_INTERNAL_FUNCTION_SAMPLE_H_
 
+#include <string>
 #include "ceres/internal/eigen.h"
-#include "glog/logging.h"
-#include "Eigen/Dense"
 
 namespace ceres {
 namespace internal {
 
-// Helper routine to compute the inverse or pseudo-inverse of a
-// symmetric positive semi-definite matrix.
+// FunctionSample is used by the line search routines to store and
+// communicate the value and (optionally) the gradient of the function
+// being minimized.
 //
-// assume_full_rank controls whether a Cholesky factorization or an
-// Singular Value Decomposition is used to compute the inverse and the
-// pseudo-inverse respectively.
-//
-// The template parameter kSize can either be Eigen::Dynamic or a
-// positive integer equal to the number of rows of m.
-template <int kSize>
-typename EigenTypes<kSize, kSize>::Matrix InvertPSDMatrix(
-    const bool assume_full_rank,
-    const typename EigenTypes<kSize, kSize>::Matrix& m) {
-  const int size = m.rows();
+// Since line search as the name implies happens along a certain
+// line/direction. FunctionSample contains the information in two
+// ways. Information in the ambient space and information along the
+// direction of search.
+struct FunctionSample {
+  FunctionSample();
+  FunctionSample(double x, double value);
+  FunctionSample(double x, double value, double gradient);
 
-  // If the matrix can be assumed to be full rank, then just use the
-  // Cholesky factorization to invert it.
-  if (assume_full_rank) {
-    return m.template selfadjointView<Eigen::Upper>().llt().solve(
-        Matrix::Identity(size, size));
-  }
+  std::string ToDebugString() const;
 
-  Eigen::JacobiSVD<Matrix> svd(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
-  const double tolerance =
-      std::numeric_limits<double>::epsilon() * size * svd.singularValues()(0);
+  // x is the location of the sample along the search direction.
+  double x;
 
-  return svd.matrixV() *
-         (svd.singularValues().array() > tolerance)
-             .select(svd.singularValues().array().inverse(), 0)
-             .matrix()
-             .asDiagonal() *
-         svd.matrixU().adjoint();
-}
+  // Let p be a point and d be the search direction then
+  //
+  // vector_x = p + x * d;
+  Vector vector_x;
+  // True if vector_x has been assigned a valid value.
+  bool vector_x_is_valid;
+
+  // value = f(vector_x)
+  double value;
+  // True of the evaluation was successful and value is a finite
+  // number.
+  bool value_is_valid;
+
+  // vector_gradient = Df(vector_position);
+  //
+  // D is the derivative operator.
+  Vector vector_gradient;
+  // True if the vector gradient was evaluated and the evaluation was
+  // successful (the value is a finite number).
+  bool vector_gradient_is_valid;
+
+  // gradient = d.transpose() * vector_gradient
+  //
+  // where d is the search direction.
+  double gradient;
+  // True if the evaluation of the gradient was sucessful and the
+  // value is a finite number.
+  bool gradient_is_valid;
+};
+
+
+
 
 }  // namespace internal
 }  // namespace ceres
 
-#endif // CERES_INTERNAL_INVERT_PSD_MATRIX_H_
+#endif  // CERES_INTERNAL_FUNCTION_SAMPLE_H_

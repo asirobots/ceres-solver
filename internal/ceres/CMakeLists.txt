@@ -65,11 +65,13 @@ set(CERES_INTERNAL_SRC
     evaluator.cc
     eigensparse.cc
     file.cc
+    function_sample.cc
     gradient_checker.cc
     gradient_checking_cost_function.cc
     gradient_problem.cc
     gradient_problem_solver.cc
     implicit_schur_complement.cc
+    inner_product_computer.cc
     is_close.cc
     iterative_schur_complement_solver.cc
     levenberg_marquardt_strategy.cc
@@ -289,20 +291,24 @@ if (BUILD_TESTING AND GFLAGS)
   ceres_test(block_random_access_diagonal_matrix)
   ceres_test(block_random_access_sparse_matrix)
   ceres_test(block_sparse_matrix)
-  ceres_test(bundle_adjustment)
   ceres_test(c_api)
   ceres_test(canonical_views_clustering)
+  ceres_test(compressed_col_sparse_matrix_utils)
   ceres_test(compressed_row_sparse_matrix)
   ceres_test(conditioned_cost_function)
+  ceres_test(conjugate_gradients_solver)
   ceres_test(corrector)
   ceres_test(cost_function_to_functor)
   ceres_test(covariance)
   ceres_test(cubic_interpolation)
-  ceres_test(detect_structure)
+  ceres_test(dense_linear_solver)
   ceres_test(dense_sparse_matrix)
+  ceres_test(detect_structure)
+  ceres_test(dogleg_strategy)
   ceres_test(dynamic_autodiff_cost_function)
   ceres_test(dynamic_compressed_row_sparse_matrix)
   ceres_test(dynamic_numeric_diff_cost_function)
+  ceres_test(dynamic_sparse_normal_cholesky_solver)
   ceres_test(dynamic_sparsity)
   ceres_test(evaluator)
   ceres_test(gradient_checker)
@@ -312,13 +318,13 @@ if (BUILD_TESTING AND GFLAGS)
   ceres_test(graph)
   ceres_test(graph_algorithms)
   ceres_test(householder_vector)
-  ceres_test(is_close)
-  ceres_test(invert_psd_matrix)
   ceres_test(implicit_schur_complement)
+  ceres_test(inner_product_computer)
+  ceres_test(invert_psd_matrix)
+  ceres_test(is_close)
   ceres_test(iterative_schur_complement_solver)
   ceres_test(jet)
   ceres_test(levenberg_marquardt_strategy)
-  ceres_test(dogleg_strategy)
   ceres_test(line_search_minimizer)
   ceres_test(line_search_preprocessor)
   ceres_test(local_parameterization)
@@ -343,23 +349,15 @@ if (BUILD_TESTING AND GFLAGS)
   ceres_test(small_blas)
   ceres_test(solver)
   ceres_test(sparse_cholesky)
-
-  # TODO(sameeragarwal): This test should ultimately be made
-  # independent of SuiteSparse.
-  if (SUITESPARSE AND SUITESPARSE_FOUND)
-    ceres_test(compressed_col_sparse_matrix_utils)
-    target_link_libraries(compressed_col_sparse_matrix_utils_test
-                          ${SUITESPARSE_LIBRARIES})
-  endif (SUITESPARSE AND SUITESPARSE_FOUND)
-
-  ceres_test(symmetric_linear_solver)
+  ceres_test(sparse_normal_cholesky_solver)
+  ceres_test(system)
   ceres_test(triplet_sparse_matrix)
   ceres_test(trust_region_minimizer)
   ceres_test(trust_region_preprocessor)
-  ceres_test(unsymmetric_linear_solver)
   ceres_test(visibility)
   ceres_test(visibility_based_preconditioner)
 
   # Put the large end to end test last.
-  ceres_test(system)
+  ceres_test(bundle_adjustment)
+
 endif (BUILD_TESTING AND GFLAGS)
