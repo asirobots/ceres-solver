@@ -227,6 +227,8 @@ macro(suitesparse_find_component COMPONENT)
       else()
         message(STATUS "Did not find ${COMPONENT} header (optional "
           "SuiteSparse component).")
+        # Hide optional vars from CMake GUI even if not found.
+        mark_as_advanced(${COMPONENT}_INCLUDE_DIR)
       endif()
     endif()
   endif()
@@ -249,6 +251,8 @@ macro(suitesparse_find_component COMPONENT)
       else()
         message(STATUS "Did not find ${COMPONENT} library (optional SuiteSparse "
           "dependency)")
+        # Hide optional vars from CMake GUI even if not found.
+        mark_as_advanced(${COMPONENT}_LIBRARY)
       endif()
     endif()
   endif()
